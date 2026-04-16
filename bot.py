@@ -12,8 +12,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 user_last_message = {}
 # BOT TOKEN
-BOT_TOKEN = os.getenv("8778771397:AAFjZpMx3TnCT5LU1GMQ7D0E6Owrwwfo3cY")
-ADMIN_ID = int(os.getenv(8088157309))  # Apna actual ID yahan daalo
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID")) # Apna actual ID yahan daalo
 
 # Channels list
 ALLOWED_CHANNELS = [
@@ -36,10 +36,11 @@ async def channels_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # User save/load
 def load_users():
-    if os.path.exists("users.json"):
+    try:
         with open("users.json", "r") as f:
             return json.load(f)
-    return []
+    except:
+        return []
 
 def save_user(user_id):
     users = load_users()
