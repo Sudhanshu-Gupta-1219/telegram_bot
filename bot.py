@@ -1,40 +1,39 @@
 # -*- coding: utf-8 -*-
 import time
-import sys
-import io
 import os
 import json
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes
+)
 
 user_last_message = {}
-# BOT TOKEN
+
+# =========================
+# ENV VARIABLES (SAFE)
+# =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID")) # Apna actual ID yahan daalo
 
-# Channels list
+ADMIN_ID = os.getenv("ADMIN_ID")
+ADMIN_ID = int(ADMIN_ID) if ADMIN_ID and ADMIN_ID.isdigit() else 0
+
+# =========================
+# CHANNELS
+# =========================
 ALLOWED_CHANNELS = [
-    {"name": "EVOFOX",            "link": "https://t.me/+L5XdykmRJQljZTVl"},
-    {"name": "LOOTS BY ULTRON",   "link": "https://t.me/LOOTSBY53"},
-    {"name": "Gift Codes Looters","link": "https://t.me/GiftCodes_Looters"},
+    {"name": "EVOFOX", "link": "https://t.me/+L5XdykmRJQljZTVl"},
+    {"name": "LOOTS BY ULTRON", "link": "https://t.me/LOOTSBY53"},
+    {"name": "Gift Codes Looters", "link": "https://t.me/GiftCodes_Looters"},
 ]
-async def channels_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    buttons = []
-    
-    for channel in ALLOWED_CHANNELS:
-        buttons.append([InlineKeyboardButton(channel["name"], url=channel["link"])])
 
-    reply_markup = InlineKeyboardMarkup(buttons)
-
-    await update.message.reply_text(
-        "📢 Hamare Official Channels:\n\n👇 Join karo:",
-        reply_markup=reply_markup
-    )
-
-# User save/load
+# =========================
+# USERS FILE SAFE HANDLING
+# =========================
 def load_users():
     try:
         with open("users.json", "r") as f:
@@ -51,55 +50,36 @@ def save_user(user_id):
 
 def get_stats():
     users = load_users()
-    return {
-        "total_users": len(users)
-    } 
+    return {"total_users": len(users)}
 
-# /start
+# =========================
+# START
+# =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user(update.effective_user.id)
+
     await update.message.reply_text(
-        "👋 Welcome! Mujhe hii bhejo Aur pao mauka paise kamane ka!!"
+        "👋 Welcome!\n\n"
+        "👉 Type /menu to see all features of this bot."
     )
 
-# /help
+# =========================
+# HELP
+# =========================
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🆘 Help Menu\n\n"
-        "📌 Commands:\n"
-        "/start - Bot shuru karo\n"
-        "/help - Yeh menu dekho\n"
-        "/channels - Channels ki list dekho\n\n"
-        "💬 Ya bas hii likho aur channels pao!\n\n"
-        "❓ Koi problem? Contact karo: @bTan_09"
+        "/start - Start bot\n"
+        "/menu - Features list\n"
+        "/channels - Join channels\n"
+        "/help - Help menu\n"
     )
 
-# /channels
-async def channels_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = "📢 Hamare Official Channels join Now!:\n\n"
-    for channel in ALLOWED_CHANNELS:
-        message += f"📢 {channel['name']} - {channel['link']}\n\n"
-    message += "❤️ react karo aur Channels ke liye! 🚀"
-    await update.message.reply_text(
-        message,
-        disable_web_page_preview=True
-    )
-
-# /users
-async def users_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
-        return
-    
-    stats = get_stats()
-
-    await update.message.reply_text(
-        f"📊 Bot Stats:\n\n"
-        f"👥 Total Users: {stats['total_users']}"
-    )
-
-#/menu command
+# =========================
+# MENU
+# =========================
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = (
+    await update.message.reply_text(
         "🤖 Bot Features Menu\n\n"
         "📌 /start - Start bot\n"
         "📢 /channels - Join channels\n"
@@ -107,54 +87,83 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💬 Smart replies:\n"
         "• hi / hello → channels\n"
         "• earn / paise → earning info\n"
-        "• link → channel list\n\n"
-        "🚀 Type commands to use features!"
+        "• link → channel list\n"
     )
 
-    await update.message.reply_text(message)
-# hii handler
+# =========================
+# CHANNELS
+# =========================
+async def channels_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = "📢 Official Channels:\n\n"
+
+    for c in ALLOWED_CHANNELS:
+        message += f"📢 {c['name']} - {c['link']}\n\n"
+
+    await update.message.reply_text(
+        message,
+        disable_web_page_preview=True
+    )
+
+# =========================
+# USERS (ADMIN ONLY)
+# =========================
+async def users_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    stats = get_stats()
+
+    await update.message.reply_text(
+        f"📊 Bot Stats\n\n👥 Total Users: {stats['total_users']}"
+    )
+
+# =========================
+# HI HANDLER (ANTI-SPAM)
+# =========================
 async def handle_hii(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    current_time = time.time()
+    now = time.time()
 
     if user_id in user_last_message:
-        if current_time - user_last_message[user_id] < 5:
-            return  # ignore spam
+        if now - user_last_message[user_id] < 5:
+            return
 
-    user_last_message[user_id] = current_time
-
+    user_last_message[user_id] = now
     save_user(user_id)
 
-    user_name = update.effective_user.first_name or "Friend"
-    message = f"👋 Hello {user_name}! Ye raha khajana:\n\n"
+    name = update.effective_user.first_name or "Friend"
 
-    for channel in ALLOWED_CHANNELS:
-        message += f"📢 {channel['name']} - {channel['link']}\n\n"
+    msg = f"👋 Hello {name}!\n\n📢 Join channels:\n\n"
 
-    await update.message.reply_text(message)
+    for c in ALLOWED_CHANNELS:
+        msg += f"{c['name']} - {c['link']}\n\n"
 
-# greetings handler
-async def handle_greetings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await handle_hii(update, context)
+    await update.message.reply_text(msg)
 
+# =========================
+# SMART REPLY
+# =========================
 async def smart_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
+    text = (update.message.text or "").lower()
 
     if "earn" in text or "paise" in text:
-        await update.message.reply_text("💰 Paise kamane ke liye channels join karo! /channels")
+        await update.message.reply_text("💰 Earn info: /channels")
 
     elif "help" in text:
         await help_command(update, context)
 
     elif "link" in text:
-        await channels_command(update, context) 
+        await channels_command(update, context)
 
+# =========================
+# BROADCAST (ADMIN ONLY)
+# =========================
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
 
     if not context.args:
-        await update.message.reply_text("❌ Usage: /broadcast message")
+        await update.message.reply_text("Usage: /broadcast message")
         return
 
     message = " ".join(context.args)
@@ -163,34 +172,40 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     success = 0
     failed = 0
 
-    for user in users:
+    for u in users:
         try:
-            await context.bot.send_message(chat_id=user, text=message)
+            await context.bot.send_message(chat_id=u, text=message)
             success += 1
         except:
             failed += 1
 
     await update.message.reply_text(
-        f"✅ Broadcast Done\n\n"
-        f"✔️ Sent: {success}\n"
-        f"❌ Failed: {failed}"
+        f"Broadcast Done\n✔️ {success}\n❌ {failed}"
     )
-# Main
+
+# =========================
+# MAIN
+# =========================
 def main():
+    if not BOT_TOKEN:
+        print("BOT_TOKEN missing!")
+        return
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("menu", menu_command))
     app.add_handler(CommandHandler("channels", channels_command))
     app.add_handler(CommandHandler("users", users_command))
     app.add_handler(CommandHandler("broadcast", broadcast))
-    app.add_handler(CommandHandler("menu", menu_command))
 
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^hi+$"), handle_hii))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^(hello|hey|namaste|helo|hlo|hlw|hayy)$"), handle_greetings))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^(hello|hey|namaste|helo|hlo|hlw|hayy)$"), handle_hii))
 
-# KEEP THIS LAST
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, smart_reply))
-    print("Bot chal raha hai... (Ctrl+C se band karo)")
+
+    print("Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
