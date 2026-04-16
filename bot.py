@@ -59,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user(update.effective_user.id)
 
     await update.message.reply_text(
-        "👋 Welcome!\n\n"
+        "👋 Welcome!, Send 'hii' to get channels link \n\n"
         "👉 Type /menu to see all features of this bot."
     )
 
